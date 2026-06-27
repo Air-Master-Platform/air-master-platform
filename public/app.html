@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Air Master — Console</title>
+  <link rel="stylesheet" href="/app.css" />
+  <link rel="icon" href="/air_master_logo.webp" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="app">
+    <!-- ── Sidebar ── -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <img src="/air_master_logo.webp" alt="Air Master" />
+      </div>
+
+      <nav class="sidebar-nav">
+        <p class="nav-section">Main Menu</p>
+        <button class="nav-item active" data-view="dashboard">
+          <span class="nav-ico">▦</span><span class="nav-label">Dashboard</span>
+        </button>
+
+        <p class="nav-section">Agents</p>
+        <button class="nav-item" data-view="agent">
+          <span class="nav-ico">✦</span><span class="nav-label">Air Master Agent</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-foot">
+        <div class="user-chip">
+          <div class="avatar" id="userAvatar">··</div>
+          <div class="user-meta">
+            <p class="user-name" id="userName">…</p>
+            <p class="user-role" id="userRole">…</p>
+          </div>
+        </div>
+        <button class="signout" id="logoutBtn">⎋ Sign Out</button>
+      </div>
+    </aside>
+
+    <!-- ── Main ── -->
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="mobile-menu" id="mobileMenu" aria-label="Menu">☰</button>
+          <span class="title-bar"></span>
+          <h1 class="page-title" id="pageTitle">Dashboard</h1>
+        </div>
+      </header>
+
+      <div class="content">
+        <!-- ===== Dashboard view ===== -->
+        <section class="view active" id="view-dashboard">
+          <!-- Health banner -->
+          <div class="health-banner">
+            <div class="health-left">
+              <p class="health-label">📈 Operational Health</p>
+              <div class="health-score" id="healthScore">96/100</div>
+              <p class="health-sub">Excellent standing</p>
+            </div>
+            <div class="health-right">
+              <div class="health-bar-row"><span>Health Score</span><span id="healthPct">96%</span></div>
+              <div class="health-track"><div class="health-fill" id="healthFill" style="width:96%"></div></div>
+              <span class="health-sync">Last sync: just now</span>
+            </div>
+          </div>
+
+          <!-- Metric cards -->
+          <div class="metrics" id="metrics"></div>
+
+          <!-- Charts -->
+          <div class="charts">
+            <div class="card chart-card wide">
+              <div class="card-head"><span class="card-ico">📊</span><span>Shipments — last 6 months</span></div>
+              <div class="card-body"><canvas id="shipmentsChart" height="120"></canvas></div>
+            </div>
+            <div class="card chart-card">
+              <div class="card-head"><span class="card-ico">🌍</span><span>Volume by region</span></div>
+              <div class="card-body"><canvas id="regionChart" height="120"></canvas></div>
+            </div>
+          </div>
+
+          <!-- Recent shipments -->
+          <div class="card">
+            <div class="card-head"><span class="card-ico">📦</span><span>Recent Shipments</span></div>
+            <div class="list" id="recentShipments"></div>
+          </div>
+        </section>
+
+        <!-- ===== Agent view ===== -->
+        <section class="view agent-view" id="view-agent">
+          <!-- Thread sidebar -->
+          <div class="threads">
+            <button class="new-chat" id="newChatBtn">＋ New chat</button>
+            <div class="thread-list" id="threadList"></div>
+          </div>
+
+          <!-- Chat column -->
+          <div class="chat-col">
+            <div class="chat-header">
+              <div class="agent-badge">✦</div>
+              <div class="agent-id">
+                <h2 id="threadTitle">Air Master Agent</h2>
+                <p>Shipment tracking, quotes, and cargo logistics.</p>
+              </div>
+              <button class="rename-btn" id="renameBtn" title="Rename" hidden>✎</button>
+            </div>
+
+            <div class="chat-card">
+              <div class="messages" id="messages"></div>
+
+              <div class="composer-wrap">
+                <form class="composer" id="chatForm">
+                  <button type="button" class="icon-btn" id="attachBtn" title="Attach (coming soon)">📎</button>
+                  <button type="button" class="icon-btn" id="micBtn" title="Voice (coming soon)">🎙</button>
+                  <textarea id="chatInput" rows="1" placeholder="Ask Air Master Agent…"></textarea>
+                  <button type="submit" class="send-btn" id="sendBtn" title="Send">➤</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
