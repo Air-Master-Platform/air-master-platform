@@ -36,6 +36,9 @@ navItems.forEach((btn) => {
       if (!threadsLoaded) loadThreads();
       document.getElementById('chatInput').focus();
     }
+    if (view === 'buildup') {
+      initBuildup();
+    }
   });
 });
 
@@ -338,4 +341,268 @@ async function deleteThread(id) {
     showQuickActions();
   }
   loadThreads();
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  BUILD UP PLAN — dynamic aircraft main-deck canvas
+//  Standard PAG 224×318cm: 11 PAG (A1–A11) + 1 AKE/PKC (P12)
+//  Data-driven & future-ready: swap `load` from a live API later.
+// ════════════════════════════════════════════════════════════════════
+const BU_POSITIONS = [
+  { id: 'A1',  type: 'PAG',     limit: 1814, load: 0 },
+  { id: 'A2',  type: 'PAG',     limit: 2948, load: 0 },
+  { id: 'A3',  type: 'PAG',     limit: 2948, load: 0 },
+  { id: 'A4',  type: 'PAG',     limit: 2948, load: 0 },
+  { id: 'A5',  type: 'PAG',     limit: 3628, load: 0 },
+  { id: 'A6',  type: 'PAG',     limit: 3628, load: 0 },
+  { id: 'A7',  type: 'PAG',     limit: 2948, load: 0 },
+  { id: 'A8',  type: 'PAG',     limit: 2948, load: 0 },
+  { id: 'A9',  type: 'PAG',     limit: 2948, load: 0 },
+  { id: 'A10', type: 'PAG',     limit: 2948, load: 0 },
+  { id: 'A11', type: 'PAG',     limit: 1814, load: 0 },
+  { id: 'P12', type: 'AKE/PKC', limit: 1133, load: 0 },
+];
+
+let buInited = false;
+let buCanvas, buCtx, buSlots = [], buHover = -1, buSelected = -1;
+const buEditor = () => document.getElementById('buEditor');
+
+function buColor(pct) {
+  if (pct > 100) return { fill: '#7f1d1d', bar: '#991b1b' };
+  if (pct >= 90) return { fill: '#dc2626', bar: '#ef4444' };
+  if (pct >= 70) return { fill: '#d97706', bar: '#f59e0b' };
+  return { fill: '#16a34a', bar: '#22c55e' };
+}
+
+function initBuildup() {
+  if (buInited) { drawBuildup(); return; }
+  buInited = true;
+  buCanvas = document.getElementById('buildupCanvas');
+  buCtx = buCanvas.getContext('2d');
+
+  buCanvas.addEventListener('mousemove', (e) => {
+    const r = buCanvas.getBoundingClientRect();
+    const x = e.clientX - r.left, y = e.clientY - r.top;
+    const prev = buHover;
+    buHover = buSlots.findIndex((s) => x >= s.x && x <= s.x + s.w && y >= s.y && y <= s.y + s.h);
+    buCanvas.style.cursor = buHover >= 0 ? 'pointer' : 'default';
+    if (buHover !== prev) drawBuildup();
+  });
+  buCanvas.addEventListener('mouseleave', () => { if (buHover !== -1) { buHover = -1; drawBuildup(); } });
+  buCanvas.addEventListener('click', (e) => {
+    const r = buCanvas.getBoundingClientRect();
+    const x = e.clientX - r.left, y = e.clientY - r.top;
+    const i = buSlots.findIndex((s) => x >= s.x && x <= s.x + s.w && y >= s.y && y <= s.y + s.h);
+    if (i >= 0) selectPosition(i);
+  });
+
+  window.addEventListener('resize', () => { if (document.getElementById('view-buildup').classList.contains('active')) drawBuildup(); });
+
+  // editor inputs
+  const loadInput = document.getElementById('buEditLoad');
+  const loadRange = document.getElementById('buEditLoadRange');
+  loadInput.addEventListener('input', () => {
+    if (buSelected < 0) return;
+    const p = BU_POSITIONS[buSelected];
+    p.load = Math.max(0, Number(loadInput.value) || 0);
+    loadRange.value = Math.min(100, Math.round((p.load / p.limit) * 100));
+    refreshEditor(); drawBuildup(); renderBuTotals();
+  });
+  loadRange.addEventListener('input', () => {
+    if (buSelected < 0) return;
+    const p = BU_POSITIONS[buSelected];
+    p.load = Math.round((Number(loadRange.value) / 100) * p.limit);
+    loadInput.value = p.load;
+    refreshEditor(); drawBuildup(); renderBuTotals();
+  });
+
+  document.getElementById('buReset').addEventListener('click', () => {
+    BU_POSITIONS.forEach((p) => (p.load = 0));
+    buSelected = -1; buEditor().hidden = true; drawBuildup(); renderBuTotals();
+  });
+  document.getElementById('buDemo').addEventListener('click', () => {
+    BU_POSITIONS.forEach((p) => (p.load = Math.round(p.limit * (0.45 + Math.random() * 0.6))));
+    refreshEditor(); drawBuildup(); renderBuTotals();
+  });
+
+  renderBuTotals();
+  drawBuildup();
+}
+
+function renderBuTotals() {
+  const totLimit = BU_POSITIONS.reduce((a, p) => a + p.limit, 0);
+  const totLoad = BU_POSITIONS.reduce((a, p) => a + p.load, 0);
+  const used = BU_POSITIONS.filter((p) => p.load > 0).length;
+  const over = BU_POSITIONS.filter((p) => p.load > p.limit).length;
+  const pct = Math.round((totLoad / totLimit) * 100);
+  document.getElementById('buTotals').innerHTML = `
+    <div class="bu-total"><div class="lbl">Total Capacity</div><div class="val">${totLimit.toLocaleString()} kg</div><div class="meta">12 positions</div></div>
+    <div class="bu-total"><div class="lbl">Total Loaded</div><div class="val">${totLoad.toLocaleString()} kg</div><div class="meta">${pct}% utilized</div></div>
+    <div class="bu-total"><div class="lbl">Positions Used</div><div class="val">${used} / 12</div><div class="meta">${12 - used} free</div></div>
+    <div class="bu-total" style="border-left-color:${over ? '#dc2626' : '#16a34a'}"><div class="lbl">Overweight</div><div class="val">${over}</div><div class="meta">${over ? 'Attention needed' : 'All within limits'}</div></div>`;
+}
+
+function selectPosition(i) {
+  buSelected = i;
+  buEditor().hidden = false;
+  refreshEditor();
+  drawBuildup();
+  buEditor().scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function refreshEditor() {
+  if (buSelected < 0) return;
+  const p = BU_POSITIONS[buSelected];
+  const pct = Math.round((p.load / p.limit) * 100);
+  document.getElementById('buEditTitle').textContent = 'Position ' + p.id;
+  document.getElementById('buEditPos').textContent = p.id;
+  document.getElementById('buEditType').textContent = p.type;
+  document.getElementById('buEditLimit').textContent = p.limit.toLocaleString() + ' kg';
+  document.getElementById('buEditLoad').value = p.load;
+  document.getElementById('buEditLoad').max = p.limit;
+  document.getElementById('buEditLoadRange').value = Math.min(100, pct);
+  const pctEl = document.getElementById('buEditPct');
+  pctEl.textContent = pct + '%';
+  pctEl.style.color = buColor(pct).fill;
+}
+
+function drawBuildup() {
+  if (!buCanvas) return;
+  const wrap = buCanvas.parentElement;
+  const cssW = Math.max(720, wrap.clientWidth - 16);
+  const cssH = 300;
+  const dpr = window.devicePixelRatio || 1;
+  buCanvas.width = cssW * dpr;
+  buCanvas.height = cssH * dpr;
+  buCanvas.style.height = cssH + 'px';
+  const ctx = buCtx;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cssW, cssH);
+
+  const n = BU_POSITIONS.length;
+  const padL = 70, padR = 80, padT = 60, padB = 40;
+  const noseW = 60, tailW = 70;
+  const bodyL = padL + noseW;
+  const bodyR = cssW - padR - tailW;
+  const bodyW = bodyR - bodyL;
+  const cy = (padT + (cssH - padB)) / 2;
+  const fuseTop = padT, fuseBot = cssH - padB;
+  const fuseH = fuseBot - fuseTop;
+
+  // ── Fuselage outline (nose left → tail right) ──
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(padL, cy);                                   // nose tip
+  ctx.quadraticCurveTo(bodyL - 18, fuseTop, bodyL, fuseTop);
+  ctx.lineTo(bodyR, fuseTop);                             // top edge
+  ctx.quadraticCurveTo(bodyR + tailW, fuseTop + 6, cssW - padR + 6, cy - 16); // tail upper
+  ctx.lineTo(cssW - padR + 6, cy + 16);                   // tail end
+  ctx.quadraticCurveTo(bodyR + tailW, fuseBot - 6, bodyR, fuseBot); // tail lower
+  ctx.lineTo(bodyL, fuseBot);                             // bottom edge
+  ctx.quadraticCurveTo(bodyL - 18, fuseBot, padL, cy);   // nose
+  ctx.closePath();
+  const g = ctx.createLinearGradient(0, fuseTop, 0, fuseBot);
+  g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#f1f3f6');
+  ctx.fillStyle = g;
+  ctx.shadowColor = 'rgba(0,0,0,0.08)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 6;
+  ctx.fill();
+  ctx.shadowColor = 'transparent';
+  ctx.strokeStyle = '#cfd4da'; ctx.lineWidth = 2; ctx.stroke();
+
+  // cockpit window hint
+  ctx.beginPath();
+  ctx.arc(padL + 22, cy, 8, -Math.PI / 2.2, Math.PI / 2.2);
+  ctx.strokeStyle = '#b8bec6'; ctx.lineWidth = 2; ctx.stroke();
+  // tail fin
+  ctx.beginPath();
+  ctx.moveTo(bodyR + 6, fuseTop + 2);
+  ctx.lineTo(bodyR + 40, fuseTop - 30);
+  ctx.lineTo(bodyR + 54, fuseTop - 28);
+  ctx.lineTo(bodyR + 30, fuseTop + 2);
+  ctx.closePath();
+  ctx.fillStyle = '#e02230'; ctx.fill();
+  ctx.restore();
+
+  // ── Position slots ──
+  const gap = 6;
+  const slotW = (bodyW - gap * (n - 1)) / n;
+  const slotH = fuseH - 36;
+  const slotY = fuseTop + 18;
+  buSlots = [];
+
+  BU_POSITIONS.forEach((p, i) => {
+    const x = bodyL + i * (slotW + gap);
+    buSlots.push({ x, y: slotY, w: slotW, h: slotH });
+    const pct = p.limit ? (p.load / p.limit) * 100 : 0;
+    const col = buColor(pct);
+    const isHover = i === buHover, isSel = i === buSelected;
+
+    // slot base
+    ctx.save();
+    roundRect(ctx, x, slotY, slotW, slotH, 7);
+    ctx.fillStyle = p.load > 0 ? '#ffffff' : '#f7f8fa';
+    ctx.fill();
+
+    // usage fill (bottom-up)
+    if (p.load > 0) {
+      const fh = Math.min(slotH, slotH * Math.min(pct, 100) / 100);
+      ctx.save();
+      roundRect(ctx, x, slotY, slotW, slotH, 7); ctx.clip();
+      const fg = ctx.createLinearGradient(0, slotY + slotH - fh, 0, slotY + slotH);
+      fg.addColorStop(0, col.bar); fg.addColorStop(1, col.fill);
+      ctx.fillStyle = fg;
+      ctx.fillRect(x, slotY + slotH - fh, slotW, fh);
+      ctx.restore();
+    }
+
+    // border
+    roundRect(ctx, x, slotY, slotW, slotH, 7);
+    ctx.lineWidth = isSel ? 3 : isHover ? 2.5 : 1.5;
+    ctx.strokeStyle = isSel ? '#e02230' : isHover ? '#b81a26' : '#c9ced5';
+    ctx.stroke();
+
+    // text: position id (top)
+    ctx.fillStyle = pct > 35 ? '#ffffff' : '#1a1d21';
+    ctx.textAlign = 'center';
+    ctx.font = '700 13px -apple-system, sans-serif';
+    ctx.fillText(p.id, x + slotW / 2, slotY + 18);
+    // type
+    ctx.font = '600 8.5px -apple-system, sans-serif';
+    ctx.fillStyle = pct > 45 ? 'rgba(255,255,255,0.85)' : '#9aa1ab';
+    ctx.fillText(p.type, x + slotW / 2, slotY + 30);
+
+    // weight (bottom)
+    ctx.fillStyle = pct > 12 ? '#ffffff' : '#6b7280';
+    ctx.font = '700 10px -apple-system, sans-serif';
+    ctx.fillText(p.load > 0 ? p.load + 'kg' : '—', x + slotW / 2, slotY + slotH - 18);
+    ctx.font = '500 8px -apple-system, sans-serif';
+    ctx.fillStyle = pct > 12 ? 'rgba(255,255,255,0.8)' : '#9aa1ab';
+    ctx.fillText('/' + p.limit, x + slotW / 2, slotY + slotH - 7);
+
+    // % badge for loaded
+    if (p.load > 0) {
+      ctx.font = '800 9px -apple-system, sans-serif';
+      ctx.fillStyle = pct > 35 ? '#ffffff' : col.fill;
+      ctx.fillText(Math.round(pct) + '%', x + slotW / 2, slotY + slotH / 2 + 3);
+    }
+    ctx.restore();
+  });
+
+  // labels
+  ctx.fillStyle = '#9aa1ab'; ctx.font = '600 11px -apple-system, sans-serif';
+  ctx.textAlign = 'left'; ctx.fillText('◀ NOSE', padL - 6, padT - 18);
+  ctx.textAlign = 'right'; ctx.fillText('TAIL ▶', cssW - padR + 6, padT - 18);
+  ctx.textAlign = 'center'; ctx.fillStyle = '#6b7280'; ctx.font = '700 12px -apple-system, sans-serif';
+  ctx.fillText('MAIN DECK CARGO COMPARTMENT — PAG 224 × 318 CM', cssW / 2, padT - 18);
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
 }

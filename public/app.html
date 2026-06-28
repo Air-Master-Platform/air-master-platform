@@ -21,6 +21,9 @@
         <button class="nav-item active" data-view="dashboard">
           <span class="nav-ico">▦</span><span class="nav-label">Dashboard</span>
         </button>
+        <button class="nav-item" data-view="buildup">
+          <span class="nav-ico">✈</span><span class="nav-label">Build Up Plan</span>
+        </button>
 
         <p class="nav-section">Agents</p>
         <button class="nav-item" data-view="agent">
@@ -86,6 +89,62 @@
           <div class="card">
             <div class="card-head"><span class="card-ico">📦</span><span>Recent Shipments</span></div>
             <div class="list" id="recentShipments"></div>
+          </div>
+        </section>
+
+        <!-- ===== Build Up Plan view ===== -->
+        <section class="view" id="view-buildup">
+          <div class="bu-head">
+            <div>
+              <h2 class="bu-title">Main Deck Build Up Plan</h2>
+              <p class="bu-sub">Standard PAG — 224 × 318 cm · 11 PAG + 1 AKE/PKC</p>
+            </div>
+            <div class="bu-actions">
+              <button class="bu-btn ghost" id="buReset">Reset</button>
+              <button class="bu-btn" id="buDemo">Demo Load</button>
+            </div>
+          </div>
+
+          <!-- Totals strip -->
+          <div class="bu-totals" id="buTotals"></div>
+
+          <!-- Aircraft canvas -->
+          <div class="card bu-canvas-card">
+            <div class="card-head"><span class="card-ico">✈</span><span>Main Deck — Nose ➜ Tail</span>
+              <span class="bu-legend">
+                <i class="lg lg-ok"></i>0–70%
+                <i class="lg lg-warn"></i>70–90%
+                <i class="lg lg-full"></i>90–100%
+                <i class="lg lg-over"></i>Over
+              </span>
+            </div>
+            <div class="card-body bu-canvas-wrap">
+              <canvas id="buildupCanvas"></canvas>
+            </div>
+          </div>
+
+          <!-- Selected position editor -->
+          <div class="card bu-editor" id="buEditor" hidden>
+            <div class="card-head"><span class="card-ico">📋</span><span id="buEditTitle">Position</span></div>
+            <div class="card-body bu-edit-body">
+              <div class="bu-field">
+                <label>Position</label><span id="buEditPos">—</span>
+              </div>
+              <div class="bu-field">
+                <label>ULD Type</label><span id="buEditType">—</span>
+              </div>
+              <div class="bu-field">
+                <label>Weight Limit</label><span id="buEditLimit">—</span>
+              </div>
+              <div class="bu-field grow">
+                <label for="buEditLoad">Loaded Weight (kg)</label>
+                <input type="range" id="buEditLoadRange" min="0" max="100" value="0" />
+                <input type="number" id="buEditLoad" min="0" step="10" />
+              </div>
+              <div class="bu-field">
+                <label>Utilization</label><span id="buEditPct" class="bu-pct">0%</span>
+              </div>
+            </div>
           </div>
         </section>
 
