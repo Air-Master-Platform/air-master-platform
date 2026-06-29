@@ -2,6 +2,7 @@
 require('dotenv').config();
 const path = require('path');
 const crypto = require('crypto');
+const { spawn } = require('child_process');
 const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
@@ -84,6 +85,51 @@ app.post('/api/logout', (req, res) => {
 
 app.get('/api/me', requireAuth, (req, res) => {
   res.json({ user: req.session.user });
+});
+
+// --- loading engine API ---
+// Run the CargoFlow Python engine (build-up + balance + re-validate) on a
+// manifest and return the plan as JSON. The engine runs as a short-lived child
+// process; one request -> one process. Requires Python available on the host.
+const ENGINE_SCRIPT = path.join(__dirname, 'engine', 'plan_api.py');
+const PYTHON_BIN = process.env.PYTHON_BIN || (process.platform === 'win32' ? 'python' : 'python3');
+const ENGINE_TIMEOUT_MS = 30000;
+
+app.post('/api/loadplan', requireAuth, (req, res) => {
+  const { family, boxes } = req.body || {};
+  if (!Array.isArray(boxes) || boxes.length === 0) {
+    return res.status(400).json({ ok: false, error: 'Provide a non-empty "boxes" array.' });
+  }
+  const payload = JSON.stringify({ family: family || 'PMC', boxes });
+
+  let child;
+  try {
+    child = spawn(PYTHON_BIN, [ENGINE_SCRIPT], { cwd: __dirname });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: 'Could not start engine: ' + e.message });
+  }
+
+  let out = '', errOut = '', done = false;
+  const finish = (fn) => { if (!done) { done = true; clearTimeout(timer); fn(); } };
+  const timer = setTimeout(() => { child.kill(); finish(() =>
+    res.status(504).json({ ok: false, error: 'Engine timed out.' })); }, ENGINE_TIMEOUT_MS);
+
+  child.stdout.on('data', (d) => (out += d));
+  child.stderr.on('data', (d) => (errOut += d));
+  child.on('error', (e) => finish(() =>
+    res.status(500).json({ ok: false, error: 'Engine spawn failed: ' + e.message })));
+  child.on('close', (code) => finish(() => {
+    try {
+      res.json(JSON.parse(out));
+    } catch (e) {
+      console.error('engine output parse error:', errOut.slice(0, 400));
+      res.status(500).json({ ok: false, error: 'Engine returned no valid plan (exit ' + code + ').',
+        stderr: errOut.slice(0, 400) });
+    }
+  }));
+
+  child.stdin.write(payload);
+  child.stdin.end();
 });
 
 // --- agent API ---

@@ -1,4 +1,25 @@
+# Python engine
+__pycache__/
+*.pyc
+.venv/
+venv/
+.idea/
+.agents/
+
+# Engine scratch / investigation artifacts (not part of the product)
+*_output*.txt
+*_text.txt
+debug_*.txt
+debug_*.py
+extract_*.py
+inspect_*.py
+search_*.py
+export_*.py
+git_status_log.txt
+
+# Node / web platform
 node_modules/
 .env
 *.log
 .DS_Store
+docs/

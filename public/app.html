@@ -97,11 +97,28 @@
           <div class="bu-head">
             <div>
               <h2 class="bu-title">Main Deck Build Up Plan</h2>
-              <p class="bu-sub">Standard PAG — 224 × 318 cm · 11 PAG + 1 AKE/PKC</p>
+              <p class="bu-sub" id="buSub">Standard PMC — 244 × 318 cm · 10 PMC + 1 AKE/PKC</p>
             </div>
             <div class="bu-actions">
+              <select id="buFamily" class="bu-select" title="Pallet family">
+                <option value="PMC">PMC (M1–M10)</option>
+                <option value="PAG">PAG (A1–A11)</option>
+              </select>
               <button class="bu-btn ghost" id="buReset">Reset</button>
-              <button class="bu-btn" id="buDemo">Demo Load</button>
+              <button class="bu-btn ghost" id="buSample">Load Sample</button>
+              <button class="bu-btn" id="buRun">▶ Run Plan</button>
+            </div>
+          </div>
+
+          <!-- Manifest input -->
+          <div class="card bu-input-card">
+            <div class="card-head"><span class="card-ico">📥</span><span>Cargo Manifest</span>
+              <span class="bu-hint">One item per line — <code>L x W x H, weight</code> (cm, kg). Optional name: <code>name: LxWxH, weight</code></span>
+            </div>
+            <div class="card-body">
+              <textarea id="buManifest" class="bu-manifest" spellcheck="false" rows="6"
+                placeholder="ENGINE: 150x120x90, 2200&#10;120x100x80, 2000&#10;120x100x80, 1800&#10;80x60x50, 600"></textarea>
+              <div id="buPlanStatus" class="bu-plan-status"></div>
             </div>
           </div>
 
@@ -121,6 +138,12 @@
             <div class="card-body bu-canvas-wrap">
               <canvas id="buildupCanvas"></canvas>
             </div>
+          </div>
+
+          <!-- Balance & validation results -->
+          <div class="card bu-result-card" id="buResultCard" hidden>
+            <div class="card-head"><span class="card-ico">⚖</span><span>Balance &amp; Validation</span></div>
+            <div class="card-body" id="buResultBody"></div>
           </div>
 
           <!-- Selected position editor -->

@@ -348,20 +348,19 @@ async function deleteThread(id) {
 //  Standard PAG 224×318cm: 11 PAG (A1–A11) + 1 AKE/PKC (P12)
 //  Data-driven & future-ready: swap `load` from a live API later.
 // ════════════════════════════════════════════════════════════════════
-const BU_POSITIONS = [
-  { id: 'A1',  type: 'PAG',     limit: 1814, load: 0 },
-  { id: 'A2',  type: 'PAG',     limit: 2948, load: 0 },
-  { id: 'A3',  type: 'PAG',     limit: 2948, load: 0 },
-  { id: 'A4',  type: 'PAG',     limit: 2948, load: 0 },
-  { id: 'A5',  type: 'PAG',     limit: 3628, load: 0 },
-  { id: 'A6',  type: 'PAG',     limit: 3628, load: 0 },
-  { id: 'A7',  type: 'PAG',     limit: 2948, load: 0 },
-  { id: 'A8',  type: 'PAG',     limit: 2948, load: 0 },
-  { id: 'A9',  type: 'PAG',     limit: 2948, load: 0 },
-  { id: 'A10', type: 'PAG',     limit: 2948, load: 0 },
-  { id: 'A11', type: 'PAG',     limit: 1814, load: 0 },
-  { id: 'P12', type: 'AKE/PKC', limit: 1133, load: 0 },
-];
+// Empty position templates per family (limits from the EgyptAir B737-800SF manual).
+const FAMILY_POSITIONS = {
+  PMC: [['M1',2494],['M2',2948],['M3',2948],['M4',2948],['M5',3628],['M6',3628],
+        ['M7',2948],['M8',2948],['M9',2948],['M10',2494],['P12',1133]],
+  PAG: [['A1',1814],['A2',2948],['A3',2948],['A4',2948],['A5',3628],['A6',3628],
+        ['A7',2948],['A8',2948],['A9',2948],['A10',2948],['A11',1814],['P12',1133]],
+};
+function emptyPositions(fam) {
+  return (FAMILY_POSITIONS[fam] || FAMILY_POSITIONS.PMC).map(
+    ([id, limit]) => ({ id, type: id === 'P12' ? 'AKE/PKC' : fam, limit, load: 0, pallet: null }));
+}
+let buFamily = 'PMC';
+let BU_POSITIONS = emptyPositions(buFamily);
 
 let buInited = false;
 let buCanvas, buCtx, buSlots = [], buHover = -1, buSelected = -1;
@@ -417,16 +416,151 @@ function initBuildup() {
   });
 
   document.getElementById('buReset').addEventListener('click', () => {
-    BU_POSITIONS.forEach((p) => (p.load = 0));
-    buSelected = -1; buEditor().hidden = true; drawBuildup(); renderBuTotals();
+    BU_POSITIONS = emptyPositions(buFamily);
+    buSelected = -1; buEditor().hidden = true;
+    document.getElementById('buResultCard').hidden = true;
+    document.getElementById('buPlanStatus').textContent = '';
+    drawBuildup(); renderBuTotals();
   });
-  document.getElementById('buDemo').addEventListener('click', () => {
-    BU_POSITIONS.forEach((p) => (p.load = Math.round(p.limit * (0.45 + Math.random() * 0.6))));
-    refreshEditor(); drawBuildup(); renderBuTotals();
+  document.getElementById('buSample').addEventListener('click', loadSampleManifest);
+  document.getElementById('buRun').addEventListener('click', runEnginePlan);
+  document.getElementById('buFamily').addEventListener('change', (e) => {
+    buFamily = e.target.value;
+    BU_POSITIONS = emptyPositions(buFamily);
+    buSelected = -1; buEditor().hidden = true;
+    document.getElementById('buResultCard').hidden = true;
+    const w = buFamily === 'PAG' ? '224' : '244';
+    const n = buFamily === 'PAG' ? '11 PAG' : '10 PMC';
+    document.getElementById('buSub').textContent = `Standard ${buFamily} — ${w} × 318 cm · ${n} + 1 AKE/PKC`;
+    drawBuildup(); renderBuTotals();
   });
 
   renderBuTotals();
   drawBuildup();
+}
+
+// ── Manifest parsing + engine call ───────────────────────────────────
+// Accepts lines like:  "ENGINE: 150x120x90, 2200"  or  "120x100x80, 2000"
+function parseManifest(text) {
+  const boxes = [], errors = [];
+  text.split('\n').forEach((line, idx) => {
+    const raw = line.trim();
+    if (!raw) return;
+    let id = null, rest = raw;
+    const colon = raw.indexOf(':');
+    if (colon > 0 && !/^\d/.test(raw)) { id = raw.slice(0, colon).trim(); rest = raw.slice(colon + 1); }
+    const m = rest.match(/(\d+)\s*[x×]\s*(\d+)\s*[x×]\s*(\d+)\s*,\s*(\d+)/i);
+    if (!m) { errors.push(`Line ${idx + 1}: "${raw}"`); return; }
+    boxes.push({ id: id || `BOX_${boxes.length + 1}`,
+      length: +m[1], width: +m[2], height: +m[3], weight: +m[4] });
+  });
+  return { boxes, errors };
+}
+
+function loadSampleManifest() {
+  const sample = buFamily === 'PAG'
+    ? ['PAG_A: 100x100x80, 1500', 'PAG_B: 100x100x80, 1500', 'PAG_C: 100x100x80, 1500',
+       'PAG_D: 100x100x80, 1000', 'PAG_E: 100x100x80, 1000', 'SMALL_1: 60x50x40, 300',
+       'SMALL_2: 60x50x40, 300', 'SMALL_3: 60x50x40, 300']
+    : ['ENGINE: 150x120x90, 2200', 'PUMP_A: 120x100x80, 2000', 'PUMP_B: 120x100x80, 1800',
+       'CRATE_1: 120x100x80, 1500', 'CRATE_2: 120x100x80, 1500', 'BOX_S: 80x60x50, 600',
+       'OVERSIZE: 600x40x40, 300'];
+  document.getElementById('buManifest').value = sample.join('\n');
+  document.getElementById('buPlanStatus').textContent = 'Sample loaded — press “Run Plan”.';
+}
+
+async function runEnginePlan() {
+  const status = document.getElementById('buPlanStatus');
+  const runBtn = document.getElementById('buRun');
+  const { boxes, errors } = parseManifest(document.getElementById('buManifest').value);
+  if (errors.length) { status.innerHTML = `<span class="ps-bad">Could not parse: ${errors.join('; ')}</span>`; return; }
+  if (!boxes.length) { status.innerHTML = `<span class="ps-bad">Add at least one item to the manifest.</span>`; return; }
+
+  runBtn.disabled = true;
+  status.innerHTML = `<span class="ps-busy">Running engine on ${boxes.length} item(s)…</span>`;
+  try {
+    const res = await fetch('/api/loadplan', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ family: buFamily, boxes }),
+    });
+    const data = await res.json();
+    if (!res.ok && !data.positions) {
+      status.innerHTML = `<span class="ps-bad">${data.error || 'Engine error.'}</span>`;
+      runBtn.disabled = false; return;
+    }
+    applyPlan(data);
+  } catch (e) {
+    status.innerHTML = `<span class="ps-bad">Request failed: ${e.message}</span>`;
+  } finally {
+    runBtn.disabled = false;
+  }
+}
+
+function applyPlan(data) {
+  // Rebuild the deck from the engine's position payload.
+  if (Array.isArray(data.positions) && data.positions.length) {
+    BU_POSITIONS = data.positions.map((p) => ({ id: p.id, type: p.type, limit: p.limit, load: p.load, pallet: p.pallet }));
+  }
+  buSelected = -1; buEditor().hidden = true;
+  drawBuildup(); renderBuTotals();
+  renderPlanResult(data);
+}
+
+function renderPlanResult(data) {
+  const status = document.getElementById('buPlanStatus');
+  const card = document.getElementById('buResultCard');
+  const body = document.getElementById('buResultBody');
+  const t = data.totals || {};
+
+  const STATUS_TEXT = {
+    OK: ['ps-ok', '✓ Legal, balanced & re-validated'],
+    INFEASIBLE: ['ps-bad', '✗ No legal balance found'],
+    NO_PALLETS: ['ps-bad', '✗ No pallets could be built'],
+    REVALIDATION_FAILED: ['ps-bad', '✗ Plan rejected by re-validator'],
+    ERROR: ['ps-bad', '✗ Engine error'],
+  };
+  const [cls, label] = STATUS_TEXT[data.status] || ['ps-bad', data.status || 'Error'];
+  status.innerHTML = `<span class="${cls}">${label}</span> · ${t.pallets_built || 0} pallets · `
+    + `${(t.packed_weight || 0).toLocaleString()} / ${(t.payload_limit || 0).toLocaleString()} kg · ${data.runtime_s ?? '—'}s`;
+
+  let html = '';
+  if (data.cg) {
+    const c = data.cg;
+    const span = c.aft_limit - c.fwd_limit;
+    const pos = Math.max(0, Math.min(100, ((c.arm - c.fwd_limit) / span) * 100));
+    const tpos = Math.max(0, Math.min(100, ((c.target - c.fwd_limit) / span) * 100));
+    const inEnv = c.arm >= c.fwd_limit && c.arm <= c.aft_limit;
+    html += `<div class="cg-block">
+      <div class="cg-row"><span>Centre of Gravity</span>
+        <strong class="${inEnv ? 'cg-ok' : 'cg-bad'}">${c.arm} in</strong></div>
+      <div class="cg-bar">
+        <div class="cg-target" style="left:${tpos}%" title="Target ${c.target}"></div>
+        <div class="cg-marker ${inEnv ? '' : 'bad'}" style="left:${pos}%"></div>
+      </div>
+      <div class="cg-scale"><span>${c.fwd_limit} (fwd)</span><span>target ${c.target}</span><span>${c.aft_limit} (aft)</span></div>
+      <p class="cg-note">Envelope shown is a provisional operational guard pending the certified AFM CG envelope.</p>
+    </div>`;
+  }
+
+  const v = data.validation || {};
+  html += `<div class="val-block ${v.ok ? 'val-ok' : 'val-bad'}">`
+    + `<strong>${v.ok ? '✓ All hard limits satisfied (independent re-validation)' : '✗ Validation issues'}</strong>`;
+  if (v.violations && v.violations.length) html += '<ul>' + v.violations.map((x) => `<li>${x}</li>`).join('') + '</ul>';
+  html += '</div>';
+
+  if (data.rejected && data.rejected.length) {
+    html += `<div class="rej-block"><strong>${data.rejected.length} item(s) rejected by build-up:</strong><ul>`
+      + data.rejected.map((r) => `<li>${r.id} (${r.dims}, ${r.weight}kg) — ${r.reason}</li>`).join('') + '</ul></div>';
+  }
+
+  if (data.pallets && data.pallets.length) {
+    html += `<div class="plt-block"><strong>Pallets built (${data.pallets.length}):</strong><ul>`
+      + data.pallets.map((p) => `<li>${p.id} → ${p.position || '(unassigned)'} · ${p.weight}kg · ${p.height}cm · [${p.boxes.join(', ')}]</li>`).join('')
+      + '</ul></div>';
+  }
+
+  body.innerHTML = html;
+  card.hidden = false;
 }
 
 function renderBuTotals() {
@@ -593,7 +727,8 @@ function drawBuildup() {
   ctx.textAlign = 'left'; ctx.fillText('◀ NOSE', padL - 6, padT - 18);
   ctx.textAlign = 'right'; ctx.fillText('TAIL ▶', cssW - padR + 6, padT - 18);
   ctx.textAlign = 'center'; ctx.fillStyle = '#6b7280'; ctx.font = '700 12px -apple-system, sans-serif';
-  ctx.fillText('MAIN DECK CARGO COMPARTMENT — PAG 224 × 318 CM', cssW / 2, padT - 18);
+  const fw = buFamily === 'PAG' ? '224' : '244';
+  ctx.fillText(`MAIN DECK CARGO COMPARTMENT — ${buFamily} ${fw} × 318 CM`, cssW / 2, padT - 18);
 }
 
 function roundRect(ctx, x, y, w, h, r) {
