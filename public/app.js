@@ -1,5 +1,11 @@
 'use strict';
 
+// Build Up Plan state — declared first so initBuildup() (a hoisted function
+// reachable from the nav handler) can never hit the temporal dead zone, even if
+// some later top-level statement throws before its original declaration ran.
+let buInited = false;
+let buCanvas, buCtx, buSlots = [], buHover = -1, buSelected = -1;
+
 // ───────── Auth / user ─────────
 let currentUser = null;
 (async function loadMe() {
@@ -37,7 +43,18 @@ navItems.forEach((btn) => {
       document.getElementById('chatInput').focus();
     }
     if (view === 'buildup') {
-      initBuildup();
+      try {
+        initBuildup();
+      } catch (err) {
+        console.error('Build Up Plan init failed:', err);
+        const sec = document.getElementById('view-buildup');
+        const note = document.getElementById('buInitError') || document.createElement('div');
+        note.id = 'buInitError';
+        note.style.cssText = 'margin:16px;padding:12px 14px;border-radius:10px;'
+          + 'background:#fef2f2;color:#991b1b;font-size:13px;';
+        note.textContent = 'Build Up Plan failed to load: ' + (err && err.message || err);
+        if (!note.parentElement) sec.prepend(note);
+      }
     }
   });
 });
@@ -236,6 +253,46 @@ async function sendMessage(text) {
   }
 }
 
+// ── Shipment item popup ─────────────────────────────────────────
+const itemModal = document.getElementById('itemModal');
+const itemForm = document.getElementById('itemForm');
+function openItemModal() {
+  if (!itemModal || !itemForm) return;
+  itemForm.reset();
+  document.getElementById('imQty').value = '1';
+  itemModal.hidden = false;
+  setTimeout(() => document.getElementById('imLen').focus(), 30);
+}
+function closeItemModal() { if (itemModal) itemModal.hidden = true; }
+
+// Bind null-safe: if the modal markup isn't present (e.g. a stale cached page),
+// these no-op instead of throwing and halting the rest of the script.
+const on = (id, ev, fn) => { const el = document.getElementById(id); if (el) el.addEventListener(ev, fn); };
+on('addItemBtn', 'click', openItemModal);
+on('itemModalClose', 'click', closeItemModal);
+on('itemCancel', 'click', closeItemModal);
+on('itemModalBackdrop', 'click', closeItemModal);
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && itemModal && !itemModal.hidden) closeItemModal();
+});
+
+if (itemForm) itemForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const name = document.getElementById('imName').value.trim();
+  const L = +document.getElementById('imLen').value;
+  const W = +document.getElementById('imWid').value;
+  const H = +document.getElementById('imHei').value;
+  const wt = +document.getElementById('imWt').value;
+  const qty = Math.max(1, Math.floor(+document.getElementById('imQty').value || 1));
+  if (!(L > 0 && W > 0 && H > 0 && wt > 0)) return;
+  // Send a precise, labelled line the agent cannot misread.
+  const label = name ? `${name}: ` : '';
+  const msg = `Shipment item — ${label}Length ${L} cm, Width ${W} cm, Height ${H} cm, `
+    + `Weight ${wt} kg, Quantity ${qty}.`;
+  closeItemModal();
+  sendMessage(msg);
+});
+
 chatForm.addEventListener('submit', (e) => { e.preventDefault(); sendMessage(chatInput.value); });
 chatInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(chatInput.value); }
@@ -257,8 +314,6 @@ document.getElementById('newChatBtn').addEventListener('click', () => {
 });
 
 // non-functional UI buttons
-document.getElementById('attachBtn').addEventListener('click', () =>
-  addInfo('📎 File attachments are coming soon.'));
 document.getElementById('micBtn').addEventListener('click', () =>
   addInfo('🎙 Voice input is coming soon.'));
 function addInfo(msg) {
@@ -362,8 +417,6 @@ function emptyPositions(fam) {
 let buFamily = 'PMC';
 let BU_POSITIONS = emptyPositions(buFamily);
 
-let buInited = false;
-let buCanvas, buCtx, buSlots = [], buHover = -1, buSelected = -1;
 const buEditor = () => document.getElementById('buEditor');
 
 function buColor(pct) {

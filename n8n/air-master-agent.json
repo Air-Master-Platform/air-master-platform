@@ -1,0 +1,83 @@
+{
+  "name": "Air Master Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "public": true,
+        "options": {
+          "responseMode": "lastNode",
+          "loadPreviousSession": "memory",
+          "initialMessages": "Hi, this is Air Master Agent. Could you send me your shipment L/W/H, weight and quantity?"
+        }
+      },
+      "id": "chat-trigger",
+      "name": "Chat Trigger",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [260, 300],
+      "webhookId": "air-master-agent"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You are Air Master Agent, a cargo shipment intake assistant for a B737-800SF main deck.\n\nYour job: collect each shipment item's Length, Width, Height (in cm), Weight (in kg), and Quantity, then run a build-up check.\n\nRules:\n- Greet only on the first turn (the welcome message is already shown).\n- For each item, ensure you have all five values: L, W, H (cm), Weight (kg), Quantity. If any are missing, ask for just the missing ones.\n- A user may give multiple items. Track them all.\n- Dimensions are always centimetres, weight always kilograms. If a value looks like it might be in another unit (e.g. millimetres or metres), ask the user to confirm.\n- When you have a complete item, restate it back as a clean structured summary, for example:\n    Item 1 — 120 x 100 x 90 cm, 450 kg, qty 2\n- After listing items, ask if they want to add more or if the manifest is complete.\n\nBUILD-UP CHECK (important):\nWhen the user confirms the manifest is complete (says done / that's all / complete / run the check / no more items), do BOTH of these in the SAME reply:\n  1. Write a short human confirmation of the manifest.\n  2. On a final line, output a machine block EXACTLY in this format (no markdown, no code fence), so the platform can run the build-up engine:\n     <<PLAN>>{\"family\":\"PMC\",\"items\":[{\"name\":\"Item 1\",\"length\":120,\"width\":100,\"height\":90,\"weight\":450,\"quantity\":2}]}<<END>>\n  - family is \"PMC\" unless the user clearly asks for PAG.\n  - Include every collected item in the items array. Use integers for length/width/height/weight/quantity (centimetres and kilograms).\n  - Do NOT output the <<PLAN>> block until the manifest is complete and confirmed.\n  - Never explain the block or wrap it in backticks; the platform parses and removes it, then appends the valid/not-valid result and pallet placement.\n\nBe concise and professional. Do not invent values.",
+          "maxIterations": 10
+        }
+      },
+      "id": "ai-agent",
+      "name": "Air Master Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [560, 300]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "openai-model",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [460, 520],
+      "credentials": {
+        "openAiApi": {
+          "id": "REPLACE_WITH_OPENAI_CRED_ID",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "contextWindowLength": 20
+      },
+      "id": "memory",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [660, 520]
+    }
+  ],
+  "connections": {
+    "Chat Trigger": {
+      "main": [[{ "node": "Air Master Agent", "type": "main", "index": 0 }]]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [[{ "node": "Air Master Agent", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [[{ "node": "Air Master Agent", "type": "ai_memory", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

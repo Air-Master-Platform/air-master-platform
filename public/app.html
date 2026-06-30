@@ -130,10 +130,10 @@
               <div class="mf-table">
                 <div class="mf-thead">
                   <span class="mf-h-name">Name</span>
-                  <span>Length</span>
-                  <span>Width</span>
-                  <span>Height</span>
-                  <span>Weight</span>
+                  <span>Length (cm)</span>
+                  <span>Width (cm)</span>
+                  <span>Height (cm)</span>
+                  <span>Weight (kg)</span>
                   <span>Qty</span>
                   <span class="mf-h-x"></span>
                 </div>
@@ -217,7 +217,7 @@
 
               <div class="composer-wrap">
                 <form class="composer" id="chatForm">
-                  <button type="button" class="icon-btn" id="attachBtn" title="Attach (coming soon)">📎</button>
+                  <button type="button" class="icon-btn" id="addItemBtn" title="Add shipment item">📦</button>
                   <button type="button" class="icon-btn" id="micBtn" title="Voice (coming soon)">🎙</button>
                   <textarea id="chatInput" rows="1" placeholder="Ask Air Master Agent…"></textarea>
                   <button type="submit" class="send-btn" id="sendBtn" title="Send">➤</button>
@@ -228,6 +228,47 @@
         </section>
       </div>
     </main>
+  </div>
+
+  <!-- Shipment item popup -->
+  <div class="item-modal" id="itemModal" hidden>
+    <div class="item-modal-backdrop" id="itemModalBackdrop"></div>
+    <div class="item-modal-card" role="dialog" aria-modal="true" aria-labelledby="itemModalTitle">
+      <div class="item-modal-head">
+        <span id="itemModalTitle">📦 Add Shipment Item</span>
+        <button type="button" class="item-modal-x" id="itemModalClose" title="Close">✕</button>
+      </div>
+      <form id="itemForm" class="item-form">
+        <label class="item-field full">
+          <span>Item name <small>(optional)</small></span>
+          <input type="text" id="imName" placeholder="e.g. Engine crate" />
+        </label>
+        <label class="item-field">
+          <span>Length (cm)</span>
+          <input type="number" id="imLen" min="1" inputmode="numeric" required placeholder="120" />
+        </label>
+        <label class="item-field">
+          <span>Width (cm)</span>
+          <input type="number" id="imWid" min="1" inputmode="numeric" required placeholder="100" />
+        </label>
+        <label class="item-field">
+          <span>Height (cm)</span>
+          <input type="number" id="imHei" min="1" inputmode="numeric" required placeholder="90" />
+        </label>
+        <label class="item-field">
+          <span>Weight (kg)</span>
+          <input type="number" id="imWt" min="1" inputmode="numeric" required placeholder="450" />
+        </label>
+        <label class="item-field">
+          <span>Quantity</span>
+          <input type="number" id="imQty" min="1" inputmode="numeric" value="1" required placeholder="1" />
+        </label>
+        <div class="item-modal-foot">
+          <button type="button" class="bu-btn ghost" id="itemCancel">Cancel</button>
+          <button type="submit" class="bu-btn" id="itemSubmit">Send to Agent</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <script src="/app.js"></script>

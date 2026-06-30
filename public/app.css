@@ -387,12 +387,13 @@ body {
 .mf-table { border: 1px solid #e8eaed; border-radius: 12px; overflow: hidden; }
 .mf-thead, .mf-row {
   display: grid;
-  grid-template-columns: minmax(120px, 1.6fr) repeat(5, minmax(60px, 1fr)) 34px;
+  grid-template-columns: minmax(120px, 1.6fr) repeat(5, minmax(72px, 1fr)) 34px;
   gap: 8px; align-items: center;
 }
 .mf-thead {
   padding: 9px 12px; background: linear-gradient(to right, var(--red-soft), var(--red-soft-2));
   font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .04em;
+  white-space: nowrap;
 }
 .mf-rows { max-height: 320px; overflow-y: auto; }
 .mf-row { padding: 7px 12px; border-top: 1px solid #f1f3f6; background: #fff; }
@@ -439,3 +440,32 @@ body {
 .val-bad { background: #fef2f2; color: #991b1b; }
 .rej-block { background: #fffbeb; color: #92400e; }
 .plt-block { background: #f8fafc; color: #475569; }
+
+/* ───────── Shipment item popup ───────── */
+.item-modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; }
+.item-modal[hidden] { display: none; }
+.item-modal-backdrop { position: absolute; inset: 0; background: rgba(26, 29, 33, 0.45); backdrop-filter: blur(2px); }
+.item-modal-card {
+  position: relative; width: min(460px, calc(100vw - 32px));
+  background: #fff; border-radius: 16px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  overflow: hidden; animation: itemPop .14s ease-out;
+}
+@keyframes itemPop { from { transform: translateY(8px) scale(.98); opacity: 0; } to { transform: none; opacity: 1; } }
+.item-modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; font-weight: 700; color: #fff;
+  background: linear-gradient(135deg, var(--red), var(--red-dark));
+}
+.item-modal-x { background: none; border: none; color: #fff; font-size: 15px; cursor: pointer; opacity: .85; }
+.item-modal-x:hover { opacity: 1; }
+.item-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; padding: 18px; }
+.item-field { display: flex; flex-direction: column; gap: 5px; }
+.item-field.full { grid-column: 1 / -1; }
+.item-field span { font-size: 12px; font-weight: 600; color: #6b7280; }
+.item-field small { font-weight: 400; color: #9aa1aa; }
+.item-field input {
+  padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px;
+  font-size: 14px; color: var(--ink); outline: none; transition: border-color .12s, box-shadow .12s;
+}
+.item-field input:focus { border-color: var(--red); box-shadow: 0 0 0 3px var(--red-soft); }
+.item-modal-foot { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
