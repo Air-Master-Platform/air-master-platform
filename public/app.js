@@ -420,10 +420,22 @@ function initBuildup() {
     buSelected = -1; buEditor().hidden = true;
     document.getElementById('buResultCard').hidden = true;
     document.getElementById('buPlanStatus').textContent = '';
+    setManifestRows([]);
     drawBuildup(); renderBuTotals();
   });
   document.getElementById('buSample').addEventListener('click', loadSampleManifest);
   document.getElementById('buRun').addEventListener('click', runEnginePlan);
+
+  // manifest row controls
+  document.getElementById('buAddRow').addEventListener('click', () => addManifestRow());
+  document.getElementById('buTemplate').addEventListener('click', downloadTemplate);
+  const fileInput = document.getElementById('buFile');
+  fileInput.addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (f) importManifestFile(f);
+    e.target.value = '';                    // allow re-importing the same file
+  });
+  setManifestRows([]);                      // start with one empty row
   document.getElementById('buFamily').addEventListener('change', (e) => {
     buFamily = e.target.value;
     BU_POSITIONS = emptyPositions(buFamily);
@@ -439,41 +451,156 @@ function initBuildup() {
   drawBuildup();
 }
 
-// ── Manifest parsing + engine call ───────────────────────────────────
-// Accepts lines like:  "ENGINE: 150x120x90, 2200"  or  "120x100x80, 2000"
-function parseManifest(text) {
+// ── Structured manifest rows ─────────────────────────────────────────
+// Each row is one item type: name, L×W×H (cm), weight (kg), quantity.
+// On run, a row with quantity n expands into n boxes (NAME_1 … NAME_n).
+const SAMPLES = {
+  PMC: [
+    { name: 'ENGINE',  length: 150, width: 120, height: 90, weight: 2200, qty: 1 },
+    { name: 'PUMP',    length: 120, width: 100, height: 80, weight: 2000, qty: 2 },
+    { name: 'CRATE',   length: 120, width: 100, height: 80, weight: 1500, qty: 2 },
+    { name: 'BOX_S',   length: 80,  width: 60,  height: 50, weight: 600,  qty: 1 },
+    { name: 'OVERSIZE', length: 600, width: 40, height: 40, weight: 300,  qty: 1 },
+  ],
+  PAG: [
+    { name: 'PAG_A',  length: 100, width: 100, height: 80, weight: 1500, qty: 3 },
+    { name: 'PAG_D',  length: 100, width: 100, height: 80, weight: 1000, qty: 2 },
+    { name: 'SMALL',  length: 60,  width: 50,  height: 40, weight: 300,  qty: 3 },
+  ],
+};
+
+function mfRowsEl() { return document.getElementById('buRows'); }
+
+function addManifestRow(item = {}) {
+  const row = document.createElement('div');
+  row.className = 'mf-row';
+  const n = (v) => (v === undefined || v === null ? '' : v);
+  row.innerHTML =
+    `<input class="mf-name" type="text" placeholder="Item name" value="${n(item.name)}" />
+     <input class="mf-len"  type="number" min="1" inputmode="numeric" placeholder="L" value="${n(item.length)}" />
+     <input class="mf-wid"  type="number" min="1" inputmode="numeric" placeholder="W" value="${n(item.width)}" />
+     <input class="mf-hei"  type="number" min="1" inputmode="numeric" placeholder="H" value="${n(item.height)}" />
+     <input class="mf-wt"   type="number" min="1" inputmode="numeric" placeholder="kg" value="${n(item.weight)}" />
+     <input class="mf-qty"  type="number" min="1" inputmode="numeric" value="${item.qty ? item.qty : 1}" />
+     <button class="mf-del" type="button" title="Remove item">✕</button>`;
+  row.querySelector('.mf-del').addEventListener('click', () => {
+    row.remove();
+    if (!mfRowsEl().children.length) addManifestRow();
+  });
+  mfRowsEl().appendChild(row);
+  return row;
+}
+
+function setManifestRows(items) {
+  mfRowsEl().innerHTML = '';
+  if (!items || !items.length) { addManifestRow(); return; }
+  items.forEach((it) => addManifestRow(it));
+}
+
+// Read rows → { boxes, errors }. Quantity expands into individual boxes.
+function collectManifestBoxes() {
   const boxes = [], errors = [];
-  text.split('\n').forEach((line, idx) => {
-    const raw = line.trim();
-    if (!raw) return;
-    let id = null, rest = raw;
-    const colon = raw.indexOf(':');
-    if (colon > 0 && !/^\d/.test(raw)) { id = raw.slice(0, colon).trim(); rest = raw.slice(colon + 1); }
-    const m = rest.match(/(\d+)\s*[x×]\s*(\d+)\s*[x×]\s*(\d+)\s*,\s*(\d+)/i);
-    if (!m) { errors.push(`Line ${idx + 1}: "${raw}"`); return; }
-    boxes.push({ id: id || `BOX_${boxes.length + 1}`,
-      length: +m[1], width: +m[2], height: +m[3], weight: +m[4] });
+  const seen = {};
+  const rows = Array.from(mfRowsEl().querySelectorAll('.mf-row'));
+  rows.forEach((row, i) => {
+    const name = row.querySelector('.mf-name').value.trim();
+    const L = +row.querySelector('.mf-len').value;
+    const W = +row.querySelector('.mf-wid').value;
+    const H = +row.querySelector('.mf-hei').value;
+    const wt = +row.querySelector('.mf-wt').value;
+    const qty = Math.max(1, Math.floor(+row.querySelector('.mf-qty').value || 1));
+    // Skip fully-empty rows silently.
+    if (!name && !L && !W && !H && !wt) return;
+    if (!(L > 0 && W > 0 && H > 0 && wt > 0)) {
+      errors.push(`Row ${i + 1}${name ? ` (${name})` : ''}: fill L, W, H and weight with positive numbers.`);
+      return;
+    }
+    const base = (name || `BOX_${i + 1}`).replace(/\s+/g, '_');
+    for (let q = 1; q <= qty; q++) {
+      let id = qty > 1 ? `${base}_${q}` : base;
+      while (seen[id]) id += '*';           // guarantee uniqueness across rows
+      seen[id] = true;
+      boxes.push({ id, length: L, width: W, height: H, weight: wt });
+    }
   });
   return { boxes, errors };
 }
 
 function loadSampleManifest() {
-  const sample = buFamily === 'PAG'
-    ? ['PAG_A: 100x100x80, 1500', 'PAG_B: 100x100x80, 1500', 'PAG_C: 100x100x80, 1500',
-       'PAG_D: 100x100x80, 1000', 'PAG_E: 100x100x80, 1000', 'SMALL_1: 60x50x40, 300',
-       'SMALL_2: 60x50x40, 300', 'SMALL_3: 60x50x40, 300']
-    : ['ENGINE: 150x120x90, 2200', 'PUMP_A: 120x100x80, 2000', 'PUMP_B: 120x100x80, 1800',
-       'CRATE_1: 120x100x80, 1500', 'CRATE_2: 120x100x80, 1500', 'BOX_S: 80x60x50, 600',
-       'OVERSIZE: 600x40x40, 300'];
-  document.getElementById('buManifest').value = sample.join('\n');
-  document.getElementById('buPlanStatus').textContent = 'Sample loaded — press “Run Plan”.';
+  setManifestRows(SAMPLES[buFamily] || SAMPLES.PMC);
+  document.getElementById('buPlanStatus').innerHTML =
+    '<span class="ps-busy">Sample loaded — press “Run Plan”.</span>';
 }
 
+// ── Excel / CSV import ────────────────────────────────────────────────
+// Flexible header matching so common column names just work.
+const COL_ALIASES = {
+  name:   ['name', 'item', 'description', 'cargo', 'id'],
+  length: ['length', 'len', 'l', 'long'],
+  width:  ['width', 'wid', 'w'],
+  height: ['height', 'hei', 'h', 'tall'],
+  weight: ['weight', 'wt', 'kg', 'mass'],
+  qty:    ['quantity', 'qty', 'q', 'count', 'pieces', 'pcs'],
+};
+function matchCol(header) {
+  const h = String(header).trim().toLowerCase().replace(/\s|\(.*\)|_/g, '');
+  for (const key in COL_ALIASES) {
+    if (COL_ALIASES[key].some((a) => a === h)) return key;
+  }
+  return null;
+}
+
+function importManifestFile(file) {
+  const status = document.getElementById('buPlanStatus');
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false });
+      if (!rows.length) throw new Error('empty sheet');
+      // Locate header row (first row that maps at least one known column).
+      let hIdx = rows.findIndex((r) => r.some((c) => matchCol(c)));
+      if (hIdx < 0) throw new Error('no recognizable columns (need name, length, width, height, weight, quantity)');
+      const map = rows[hIdx].map(matchCol);
+      const items = [];
+      for (let r = hIdx + 1; r < rows.length; r++) {
+        const cells = rows[r];
+        if (!cells || !cells.length) continue;
+        const it = { qty: 1 };
+        map.forEach((key, c) => { if (key && cells[c] !== '' && cells[c] != null) it[key] = cells[c]; });
+        if (it.name || it.length || it.weight) items.push(it);
+      }
+      if (!items.length) throw new Error('no data rows found');
+      setManifestRows(items);
+      status.innerHTML = `<span class="ps-ok">Imported ${items.length} item(s) from ${file.name}. Review &amp; press “Run Plan”.</span>`;
+    } catch (err) {
+      status.innerHTML = `<span class="ps-bad">Could not read “${file.name}”: ${err.message}</span>`;
+    }
+  };
+  reader.onerror = () => { status.innerHTML = `<span class="ps-bad">Failed to read file.</span>`; };
+  reader.readAsArrayBuffer(file);
+}
+
+function downloadTemplate() {
+  const csv = 'name,length,width,height,weight,quantity\n'
+    + 'ENGINE,150,120,90,2200,1\n'
+    + 'PUMP,120,100,80,2000,2\n'
+    + 'CRATE,120,100,80,1500,2\n';
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'manifest_template.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// ── Engine call ───────────────────────────────────────────────────────
 async function runEnginePlan() {
   const status = document.getElementById('buPlanStatus');
   const runBtn = document.getElementById('buRun');
-  const { boxes, errors } = parseManifest(document.getElementById('buManifest').value);
-  if (errors.length) { status.innerHTML = `<span class="ps-bad">Could not parse: ${errors.join('; ')}</span>`; return; }
+  const { boxes, errors } = collectManifestBoxes();
+  if (errors.length) { status.innerHTML = `<span class="ps-bad">${errors.join('<br>')}</span>`; return; }
   if (!boxes.length) { status.innerHTML = `<span class="ps-bad">Add at least one item to the manifest.</span>`; return; }
 
   runBtn.disabled = true;
