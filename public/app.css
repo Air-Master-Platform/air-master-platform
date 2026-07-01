@@ -11,6 +11,14 @@
   --sidebar: #ffffff;
   --red-soft: rgba(224, 34, 48, 0.08);
   --red-soft-2: rgba(224, 34, 48, 0.04);
+
+  /* ── Instrument tokens (aviation panel vernacular) ── */
+  --mono: ui-monospace, "SFMono-Regular", "IBM Plex Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --horizon-sky: #3a72b0;
+  --horizon-sky-dark: #234a75;
+  --horizon-ground: #7a5230;
+  --horizon-ground-dark: #543a22;
+  --bezel: #1a1d21;
 }
 
 * { box-sizing: border-box; }
@@ -439,3 +447,154 @@ body {
 .val-bad { background: #fef2f2; color: #991b1b; }
 .rej-block { background: #fffbeb; color: #92400e; }
 .plt-block { background: #f8fafc; color: #475569; }
+.rej-why {
+  margin-left: 8px; padding: 1px 8px; border-radius: 99px; border: 1px solid rgba(146,64,14,0.35);
+  background: #fff; color: #92400e; font-size: 10.5px; font-weight: 700; cursor: pointer;
+  font-family: var(--mono); letter-spacing: .02em;
+}
+.rej-why:hover { background: #92400e; color: #fff; }
+
+/* ═══════════════ Instrument frame — corner-bracket "reticle" ═══════════════
+   Shared framing device for the 3D viewport and the door-envelope placard:
+   four HUD-style corner marks signal "this is an instrument being read,"
+   not a decorative panel. */
+.instrument-frame {
+  position: relative; border-radius: 10px; background: #0d1013;
+  padding: 14px; overflow: hidden;
+}
+.instrument-frame::before, .instrument-frame::after,
+.instrument-frame .corner-tl, .instrument-frame .corner-br { content: ''; }
+.instrument-frame::before, .instrument-frame::after {
+  position: absolute; width: 22px; height: 22px; pointer-events: none;
+  border-color: rgba(255,255,255,0.35); border-style: solid; border-width: 0;
+}
+.instrument-frame::before { top: 8px; left: 8px; border-top-width: 2px; border-left-width: 2px; }
+.instrument-frame::after  { bottom: 8px; right: 8px; border-bottom-width: 2px; border-right-width: 2px; }
+.instrument-frame .corner-tr, .instrument-frame .corner-bl {
+  position: absolute; width: 22px; height: 22px; pointer-events: none;
+  border-color: rgba(255,255,255,0.35); border-style: solid; border-width: 0;
+}
+.instrument-frame .corner-tr { top: 8px; right: 8px; border-top-width: 2px; border-right-width: 2px; }
+.instrument-frame .corner-bl { bottom: 8px; left: 8px; border-bottom-width: 2px; border-left-width: 2px; }
+
+/* ═══════════════ Build Up — view toggle ═══════════════ */
+.bu-viewtoggle {
+  display: flex; gap: 2px; padding: 3px; background: #eef0f3; border-radius: 11px;
+}
+.bu-view-btn {
+  padding: 7px 13px; border: 0; border-radius: 8px; background: transparent; color: var(--muted);
+  font-size: 12.5px; font-weight: 700; cursor: pointer; transition: all .15s; font-family: var(--mono);
+  letter-spacing: .02em;
+}
+.bu-view-btn:hover { color: var(--red); }
+.bu-view-btn.active { background: #fff; color: var(--ink); box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+
+/* ═══════════════ 3D deck viewport ═══════════════ */
+#bu3DFrame { height: 520px; }
+#bu3DMount { width: 100%; height: 100%; }
+#bu3DMount canvas { display: block; border-radius: 4px; }
+.bu3d-hint {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: rgba(255,255,255,0.4); font-size: 12.5px; font-weight: 600; pointer-events: none;
+  font-family: var(--mono);
+}
+.bu3d-hint.hidden { display: none; }
+.bu3d-readout {
+  position: absolute; top: 22px; left: 22px; font-family: var(--mono); font-size: 11px;
+  color: rgba(255,255,255,0.75); line-height: 1.6; pointer-events: none;
+}
+.bu3d-readout b { color: #fff; font-weight: 700; }
+
+/* floating pallet tooltip (follows the cursor) */
+.bu3d-tooltip {
+  position: absolute; z-index: 6; pointer-events: none; opacity: 0;
+  transform: translate(-50%, -115%); transition: opacity .12s;
+  background: rgba(13,16,19,0.94); border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 9px; padding: 8px 11px; font-family: var(--mono); font-size: 11px;
+  color: #e8eef5; line-height: 1.5; white-space: nowrap; box-shadow: 0 8px 22px rgba(0,0,0,0.5);
+}
+.bu3d-tooltip.on { opacity: 1; }
+.bu3d-tooltip .tt-id { font-weight: 700; color: #fff; font-size: 12px; }
+.bu3d-tooltip .tt-dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+
+/* camera view-preset buttons */
+.bu3d-controls { position: absolute; top: 18px; right: 18px; z-index: 6; display: flex; gap: 6px; }
+.bu3d-cbtn {
+  font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: .02em;
+  color: rgba(255,255,255,0.8); background: rgba(20,26,34,0.72); cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.14); border-radius: 8px; padding: 6px 10px;
+  backdrop-filter: blur(4px); transition: all .14s;
+}
+.bu3d-cbtn:hover { color: #fff; border-color: rgba(224,34,48,0.6); background: rgba(224,34,48,0.22); }
+
+/* CG balance-beam legend (bottom strip) */
+.bu3d-cglegend {
+  position: absolute; left: 22px; bottom: 16px; z-index: 6; pointer-events: none;
+  font-family: var(--mono); font-size: 10.5px; color: rgba(255,255,255,0.7);
+  display: flex; align-items: center; gap: 14px;
+}
+.bu3d-cglegend .cgl { display: inline-flex; align-items: center; gap: 5px; }
+.bu3d-cglegend .cgl i { width: 12px; height: 4px; border-radius: 2px; display: inline-block; }
+
+/* ═══════════════ CG artificial horizon gauge ═══════════════
+   A real attitude-indicator metaphor: sky/ground bands tilt with the
+   loaded CG's offset from the fwd/aft envelope. Level = well-trimmed;
+   the further it tilts, the closer to a limit — legible at a glance to
+   anyone who has ever looked at a cockpit instrument. */
+.horizon-wrap {
+  display: flex; align-items: center; gap: 18px; padding: 16px;
+  background: #0d1013; border-radius: 14px; margin-bottom: 14px;
+}
+.horizon-gauge { flex-shrink: 0; width: 128px; height: 128px; border-radius: 50%; position: relative;
+  box-shadow: 0 0 0 3px var(--bezel), 0 0 0 5px rgba(255,255,255,0.08), inset 0 0 14px rgba(0,0,0,0.6); }
+.horizon-disc {
+  position: absolute; inset: 0; border-radius: 50%; overflow: hidden;
+  transition: transform .8s cubic-bezier(.22,1,.36,1);
+}
+.horizon-sky   { position: absolute; left: -50%; right: -50%; top: -100%; height: 150%;
+  background: linear-gradient(to bottom, var(--horizon-sky), var(--horizon-sky-dark)); }
+.horizon-ground{ position: absolute; left: -50%; right: -50%; bottom: -100%; height: 150%;
+  background: linear-gradient(to top, var(--horizon-ground), var(--horizon-ground-dark)); }
+.horizon-line  { position: absolute; left: -50%; right: -50%; top: 50%; height: 2px; background: #fff; }
+.horizon-ladder{ position: absolute; left: 50%; top: 50%; width: 30px; height: 1px; background: rgba(255,255,255,0.55); }
+.horizon-index {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(to bottom, transparent 49%, #f5c518 49%, #f5c518 51%, transparent 51%) top 8px left / 3px 12px no-repeat,
+    linear-gradient(to bottom, transparent 49%, #f5c518 49%, #f5c518 51%, transparent 51%) bottom 8px left / 3px 12px no-repeat;
+}
+.horizon-index::before, .horizon-index::after {
+  content: ''; position: absolute; top: 50%; width: 26px; height: 3px; background: #f5c518;
+  transform: translateY(-50%);
+}
+.horizon-index::before { left: 6px; } .horizon-index::after { right: 6px; }
+.horizon-readout { flex: 1; min-width: 0; }
+.horizon-readout .hr-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,0.5); }
+.horizon-readout .hr-value { font-family: var(--mono); font-size: 24px; font-weight: 700; color: #fff; margin: 3px 0 8px; }
+.horizon-readout .hr-value.hr-bad { color: #f87171; }
+.horizon-readout .hr-margins { display: flex; gap: 14px; font-family: var(--mono); font-size: 11px; color: rgba(255,255,255,0.65); }
+.horizon-readout .hr-margins b { color: #fff; }
+.horizon-readout .hr-note { margin: 8px 0 0; font-size: 10.5px; color: rgba(255,255,255,0.4); font-style: italic; }
+
+/* ═══════════════ Door-fit placard modal ═══════════════ */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(10,12,14,0.6); backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center; z-index: 200; padding: 20px;
+}
+.modal-overlay[hidden] { display: none; }
+.modal-card {
+  width: 100%; max-width: 700px; background: var(--card); border-radius: 16px; overflow: hidden;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.35);
+}
+.modal-head {
+  display: flex; align-items: center; justify-content: space-between; padding: 14px 18px;
+  border-bottom: 1px solid var(--line); font-size: 14px; font-weight: 700;
+}
+.modal-close { border: 0; background: transparent; font-size: 15px; color: var(--muted); cursor: pointer; padding: 6px; border-radius: 8px; }
+.modal-close:hover { color: var(--red); background: var(--red-soft); }
+.modal-body { padding: 18px; }
+.door-explain { margin-top: 14px; font-size: 13px; line-height: 1.6; color: var(--ink); }
+.door-explain .de-verdict { font-weight: 800; font-size: 14px; margin-bottom: 6px; }
+.door-explain .de-ok  { color: #16a34a; }
+.door-explain .de-bad { color: #dc2626; }
+.door-explain code { font-family: var(--mono); background: #f1f3f6; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
