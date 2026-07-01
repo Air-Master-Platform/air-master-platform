@@ -1,6 +1,7 @@
 'use strict';
 require('dotenv').config();
 const path = require('path');
+const fs = require('fs');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
 const express = require('express');
@@ -101,6 +102,55 @@ app.post('/api/loadplan', requireAuth, async (req, res) => {
   if (r.ok) return res.json(r.plan);
   const code = /non-empty/.test(r.error) ? 400 : (/timed out/.test(r.error) ? 504 : 500);
   return res.status(code).json({ ok: false, error: r.error, stderr: r.stderr });
+});
+
+// --- door envelope API ---
+// Serves the real cargo-door height/width/max-length matrix (the exact CSVs
+// the Python engine reads for its door-envelope gate) so the front end can
+// render a true-to-the-manual "why doesn't this fit" diagram. Parsed once,
+// cached in memory (the CSVs are static reference data).
+const DOOR_DATA_DIR = path.join(__dirname, 'engine', 'data');
+
+function parseDoorCsv(filePath) {
+  const raw = fs.readFileSync(filePath, 'utf8');
+  const lines = raw.split(/\r?\n/).filter((l) => l.trim().length);
+  // line 0 = "Maximum Allowed Length (CM)" banner; line 1 = header row.
+  const widthCols = lines[1].split(',').slice(1)
+    .map((c) => c.trim()).filter((c) => c !== '').map(Number);
+  const rows = [];
+  for (let i = 2; i < lines.length; i++) {
+    const cols = lines[i].split(',');
+    const height = Number(cols[0]);
+    if (!Number.isFinite(height)) continue;
+    const limits = [];
+    for (let c = 0; c < widthCols.length; c++) {
+      const v = cols[c + 1] !== undefined ? cols[c + 1].trim() : '';
+      if (v !== '') limits.push({ width: widthCols[c], max_length: Number(v) });
+    }
+    rows.push({ height, limits });
+  }
+  // Ascending by height so "first bracket >= item height" lookups are simple.
+  rows.sort((a, b) => a.height - b.height);
+  return rows;
+}
+
+let doorEnvelopeCache = null;
+function getDoorEnvelope() {
+  if (!doorEnvelopeCache) {
+    doorEnvelopeCache = {
+      fwd: parseDoorCsv(path.join(DOOR_DATA_DIR, 'b737_800sf_door_fwd.csv')),
+      aft: parseDoorCsv(path.join(DOOR_DATA_DIR, 'b737_800sf_door_aft.csv')),
+    };
+  }
+  return doorEnvelopeCache;
+}
+
+app.get('/api/door-envelope', requireAuth, (req, res) => {
+  try {
+    res.json({ ok: true, ...getDoorEnvelope() });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: 'Could not load door envelope data: ' + e.message });
+  }
 });
 
 // --- agent API ---
