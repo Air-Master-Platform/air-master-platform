@@ -73,10 +73,10 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
 // ───────── Dashboard (cargo mock data) ─────────
 function renderDashboard() {
   const metrics = [
-    { label: 'Active Shipments', value: '1,284', icon: '📦', up: true, sub: '+8.2% vs last month' },
-    { label: 'In Transit', value: '342', icon: '✈️', up: true, sub: '27 arriving today' },
-    { label: 'On-Time Rate', value: '99.2%', icon: '⏱️', up: true, sub: '+0.4% this quarter' },
-    { label: 'Revenue (MTD)', value: '$2.4M', icon: '💰', up: false, sub: '-1.1% vs target' },
+    { label: 'Active Shipments', value: '1,284', icon: 'i-package', up: true, sub: '+8.2% vs last month' },
+    { label: 'In Transit', value: '342', icon: 'i-plane', up: true, sub: '27 arriving today' },
+    { label: 'On-Time Rate', value: '99.2%', icon: 'i-timer', up: true, sub: '+0.4% this quarter' },
+    { label: 'Revenue (MTD)', value: '$2.4M', icon: 'i-dollar', up: false, sub: '-1.1% vs target' },
   ];
   document.getElementById('metrics').innerHTML = metrics.map((m) => `
     <div class="metric">
@@ -84,7 +84,7 @@ function renderDashboard() {
       <div class="metric-body">
         <div class="metric-top">
           <span class="metric-label">${m.label}</span>
-          <span class="metric-icon">${m.icon}</span>
+          <span class="metric-icon"><svg class="icon"><use href="#${m.icon}"/></svg></span>
         </div>
         <div class="metric-value">${m.value}</div>
         <div class="metric-sub">
@@ -105,7 +105,7 @@ function renderDashboard() {
   const badgeText = { transit: 'In Transit', delivered: 'Delivered', pending: 'Pending', delayed: 'Delayed' };
   document.getElementById('recentShipments').innerHTML = shipments.map((s) => `
     <div class="list-row">
-      <div class="list-ico">📦</div>
+      <div class="list-ico"><svg class="icon"><use href="#i-package"/></svg></div>
       <div class="list-main">
         <p class="list-title">${s.id} — ${s.route}</p>
         <p class="list-meta">${s.when}</p>
