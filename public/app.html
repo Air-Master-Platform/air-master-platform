@@ -322,7 +322,7 @@
           <!-- Chat column -->
           <div class="chat-col">
             <div class="chat-header">
-              <div class="agent-badge"><svg class="icon icon-lg"><use href="#i-sparkles"/></svg></div>
+              <div class="agent-badge"><img src="/agent-avatar.png" alt="Air Master" class="agent-badge-img"></div>
               <div class="agent-id">
                 <h2 id="threadTitle">Air Master Agent</h2>
                 <p>Shipment tracking, quotes, and cargo logistics.</p>
@@ -336,7 +336,7 @@
               <div class="composer-wrap">
                 <form class="composer" id="chatForm">
                   <button type="button" class="icon-btn" id="addItemBtn" title="Add shipment item"><svg class="icon icon-lg"><use href="#i-package"/></svg></button>
-                  <button type="button" class="icon-btn" id="micBtn" title="Voice (coming soon)"><svg class="icon icon-lg"><use href="#i-mic"/></svg></button>
+                  <button type="button" class="icon-btn" id="micBtn" title="Talk to Air Master"><svg class="icon icon-lg"><use href="#i-mic"/></svg></button>
                   <textarea id="chatInput" rows="1" placeholder="Ask Air Master Agent…"></textarea>
                   <button type="submit" class="send-btn" id="sendBtn" title="Send"><svg class="icon icon-lg"><use href="#i-send"/></svg></button>
                 </form>
@@ -403,6 +403,24 @@
         </div>
         <div class="door-explain" id="doorExplain"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- Voice conversation overlay -->
+  <div class="voice-overlay" id="voiceOverlay" hidden>
+    <button type="button" class="voice-close" id="voiceClose" aria-label="End voice call">✕</button>
+    <div class="voice-stage">
+      <div class="voice-orb" id="voiceOrb">
+        <span class="voice-ring r1"></span>
+        <span class="voice-ring r2"></span>
+        <span class="voice-ring r3"></span>
+        <img src="/agent-avatar.png" alt="Air Master" class="voice-avatar">
+      </div>
+      <p class="voice-status" id="voiceStatus">Listening…</p>
+      <p class="voice-transcript" id="voiceTranscript"></p>
+      <button type="button" class="voice-mute" id="voiceMute" title="Pause listening">
+        <svg class="icon icon-lg"><use href="#i-mic"/></svg>
+      </button>
     </div>
   </div>
 

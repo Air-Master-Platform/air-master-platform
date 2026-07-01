@@ -197,7 +197,7 @@ function addBubble(role, content) {
   row.className = 'row ' + role;
   const name = role === 'agent' ? 'Air Master Agent' : 'You';
   const avatar = role === 'agent'
-    ? `<div class="row-avatar agent"><img src="/air_master_logo.webp" alt="A"></div>`
+    ? `<div class="row-avatar agent"><img src="/agent-avatar.png" alt="A"></div>`
     : `<div class="row-avatar user">👤</div>`;
   row.innerHTML = `
     ${avatar}
@@ -215,7 +215,7 @@ function addTyping() {
   row.className = 'row agent';
   row.id = 'typingRow';
   row.innerHTML = `
-    <div class="row-avatar agent"><img src="/air_master_logo.webp" alt="A"></div>
+    <div class="row-avatar agent"><img src="/agent-avatar.png" alt="A"></div>
     <div class="bubble agent" style="padding:0"><div class="typing"><span></span><span></span><span></span></div></div>`;
   messagesEl.appendChild(row);
   messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -317,14 +317,163 @@ document.getElementById('newChatBtn').addEventListener('click', () => {
   chatInput.focus();
 });
 
-// non-functional UI buttons
-document.getElementById('micBtn').addEventListener('click', () =>
-  addInfo('🎙 Voice input is coming soon.'));
 function addInfo(msg) {
   const quick = messagesEl.querySelector('.quick');
   if (quick) quick.remove();
   addBubble('agent', msg);
 }
+
+// ── Real-time voice conversation ────────────────────────────────
+const voice = {
+  overlay:    document.getElementById('voiceOverlay'),
+  orb:        document.getElementById('voiceOrb'),
+  status:     document.getElementById('voiceStatus'),
+  transcript: document.getElementById('voiceTranscript'),
+  muteBtn:    document.getElementById('voiceMute'),
+  closeBtn:   document.getElementById('voiceClose'),
+  rec:        null,      // SpeechRecognition instance
+  active:     false,     // overlay open
+  muted:      false,     // listening paused
+  busy:       false,     // agent request in flight
+  femaleVoice: null,
+};
+
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+// Pick a female English voice once voices are available.
+function pickFemaleVoice() {
+  const voices = speechSynthesis.getVoices();
+  if (!voices.length) return;
+  const en = voices.filter((v) => /^en/i.test(v.lang));
+  const pool = en.length ? en : voices;
+  const preferred = ['samantha', 'victoria', 'karen', 'moira', 'tessa', 'zira',
+    'google us english', 'female', 'aria', 'jenny'];
+  voice.femaleVoice =
+    pool.find((v) => preferred.some((p) => v.name.toLowerCase().includes(p)))
+    || pool.find((v) => !/male|david|alex|daniel|fred|thomas/i.test(v.name))
+    || pool[0];
+}
+if ('speechSynthesis' in window) {
+  pickFemaleVoice();
+  speechSynthesis.onvoiceschanged = pickFemaleVoice;
+}
+
+function setVoiceStatus(text, mode) {
+  voice.status.textContent = text;
+  voice.orb.classList.toggle('pulsing', mode === 'listening');
+  voice.orb.classList.toggle('speaking', mode === 'speaking');
+}
+
+function speak(text, onEnd) {
+  if (!('speechSynthesis' in window)) { onEnd && onEnd(); return; }
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  if (voice.femaleVoice) u.voice = voice.femaleVoice;
+  u.lang = voice.femaleVoice?.lang || 'en-US';
+  u.rate = 1.0; u.pitch = 1.08;
+  u.onstart = () => setVoiceStatus('Speaking…', 'speaking');
+  u.onend   = () => onEnd && onEnd();
+  speechSynthesis.speak(u);
+}
+
+function startListening() {
+  if (!voice.active || voice.muted || voice.busy) return;
+  try { voice.rec && voice.rec.start(); } catch (_) { /* already started */ }
+  setVoiceStatus('Listening…', 'listening');
+}
+
+async function voiceAsk(text) {
+  voice.busy = true;
+  setVoiceStatus('Thinking…', null);
+  addBubble('user', text);          // mirror into chat log
+  addTyping();
+  try {
+    const res = await fetch('/api/agent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text, session_id: activeSessionId }),
+    });
+    const data = await res.json();
+    removeTyping();
+    if (!res.ok) throw new Error(data.error || 'Agent error.');
+    if (!activeSessionId) { activeSessionId = data.session_id; threadsLoaded = false; }
+    addBubble('agent', data.reply);
+    if (data.isNew) { loadThreads(); refreshTitle(); }
+    voice.transcript.textContent = data.reply;
+    speak(data.reply, () => { voice.busy = false; startListening(); });
+  } catch (err) {
+    removeTyping();
+    addBubble('agent', '⚠️ ' + err.message);
+    speak('Sorry, something went wrong.', () => { voice.busy = false; startListening(); });
+  }
+}
+
+function buildRecognition() {
+  if (!SR) return null;
+  const rec = new SR();
+  rec.lang = 'en-US';
+  rec.interimResults = true;
+  rec.continuous = false;
+  rec.onresult = (e) => {
+    let interim = '', final = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) final += t; else interim += t;
+    }
+    voice.transcript.textContent = (final || interim).trim();
+    if (final.trim()) voiceAsk(final.trim());
+  };
+  rec.onend = () => {
+    // Auto-restart while active, not muted, not waiting on agent.
+    if (voice.active && !voice.muted && !voice.busy) setTimeout(startListening, 250);
+  };
+  rec.onerror = (e) => {
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      setVoiceStatus('Mic blocked — allow access', null);
+      voice.muted = true;
+    }
+  };
+  return rec;
+}
+
+function openVoice() {
+  if (!SR) { addInfo('🎙 Voice not supported in this browser. Try Chrome.'); return; }
+  voice.rec = voice.rec || buildRecognition();
+  voice.active = true;
+  voice.muted = false;
+  voice.busy = false;
+  voice.transcript.textContent = '';
+  voice.overlay.hidden = false;
+  const greet = 'Hi, I’m Air Master. How can I help with your shipment?';
+  voice.transcript.textContent = greet;
+  speak(greet, () => startListening());
+}
+
+function closeVoice() {
+  voice.active = false;
+  voice.busy = false;
+  try { voice.rec && voice.rec.stop(); } catch (_) {}
+  if ('speechSynthesis' in window) speechSynthesis.cancel();
+  voice.orb.classList.remove('pulsing', 'speaking');
+  voice.overlay.hidden = true;
+}
+
+document.getElementById('micBtn').addEventListener('click', openVoice);
+voice.closeBtn.addEventListener('click', closeVoice);
+voice.muteBtn.addEventListener('click', () => {
+  voice.muted = !voice.muted;
+  voice.muteBtn.classList.toggle('muted', voice.muted);
+  if (voice.muted) {
+    try { voice.rec && voice.rec.stop(); } catch (_) {}
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+    setVoiceStatus('Paused', null);
+  } else {
+    startListening();
+  }
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && voice.active) closeVoice();
+});
 
 // ── Threads ──
 async function loadThreads() {
