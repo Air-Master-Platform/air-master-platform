@@ -5,7 +5,8 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
 const express = require('express');
-const session = require('cookie-session');
+const cookieParser = require('cookie-parser');
+const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const db = require('./db');
 const { runPlan } = require('./engine');
@@ -15,25 +16,50 @@ const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
 // Behind Vercel's edge/proxy: TLS is terminated upstream, so Express sees http
-// internally. Trust the proxy so secure cookies are set and sent correctly.
+// internally. Trust the proxy so proto/secure detection is correct.
 app.set('trust proxy', 1);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-// Stateless signed-cookie session: the session lives in the cookie itself, so
-// it survives across serverless instances (no in-memory store to lose).
-app.use(
-  session({
-    name: 'am_sess',
-    keys: [process.env.SESSION_SECRET || 'dev-insecure-secret'],
+app.use(cookieParser());
+
+// --- Stateless JWT session (survives serverless instances; no store) ---
+// We sign a JWT with the user and store it in a plain httpOnly cookie that we
+// set/read ourselves. This avoids cookie-session's HTTPS-detection quirks on
+// Vercel that were silently dropping the Set-Cookie header.
+const JWT_SECRET = process.env.SESSION_SECRET || 'dev-insecure-secret';
+const SESSION_COOKIE = 'am_token';
+const SESSION_MAX_AGE = 1000 * 60 * 60 * 8; // 8h
+
+function setSession(res, user) {
+  const token = jwt.sign({ user }, JWT_SECRET, { expiresIn: '8h' });
+  res.cookie(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
-    // Let cookie-session decide secure from the (proxy-trusted) request instead
-    // of forcing it; forcing secure can cause the cookie to be dropped when
-    // HTTPS detection behind Vercel's edge is inconsistent.
-    maxAge: 1000 * 60 * 60 * 8,
-  })
-);
+    secure: true, // served over HTTPS on Vercel; harmless locally via proxy trust
+    maxAge: SESSION_MAX_AGE,
+    path: '/',
+  });
+}
+
+function clearSession(res) {
+  res.clearCookie(SESSION_COOKIE, { path: '/' });
+}
+
+// Populate req.session.user from the JWT cookie so existing routes are unchanged.
+app.use((req, res, next) => {
+  req.session = {};
+  const token = req.cookies && req.cookies[SESSION_COOKIE];
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      req.session.user = decoded.user;
+    } catch {
+      /* invalid/expired token → treated as logged out */
+    }
+  }
+  next();
+});
 
 // --- auth guard ---
 function requireAuth(req, res, next) {
@@ -87,8 +113,9 @@ app.post('/api/login', async (req, res) => {
     const ok = await bcrypt.compare(password, user.password_hash);
     if (!ok) return res.status(401).json({ error: 'Invalid credentials.' });
 
-    req.session.user = { id: user.id, username: user.username, role: user.role };
-    res.json({ ok: true, user: req.session.user });
+    const sessionUser = { id: user.id, username: user.username, role: user.role };
+    setSession(res, sessionUser);
+    res.json({ ok: true, user: sessionUser });
   } catch (err) {
     console.error('login error:', err.message);
     res.status(500).json({ error: 'Server error. Check DB connection.' });
@@ -96,7 +123,7 @@ app.post('/api/login', async (req, res) => {
 });
 
 app.post('/api/logout', (req, res) => {
-  req.session = null;
+  clearSession(res);
   res.json({ ok: true });
 });
 
