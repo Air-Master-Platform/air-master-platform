@@ -5,7 +5,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
 const express = require('express');
-const session = require('express-session');
+const session = require('cookie-session');
 const bcrypt = require('bcryptjs');
 const db = require('./db');
 const { runPlan } = require('./engine');
@@ -16,12 +16,16 @@ const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+// Stateless signed-cookie session: the session lives in the cookie itself, so
+// it survives across serverless instances (no in-memory store to lose).
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || 'dev-insecure-secret',
-    resave: false,
-    saveUninitialized: false,
-    cookie: { httpOnly: true, sameSite: 'lax', maxAge: 1000 * 60 * 60 * 8 },
+    name: 'am_sess',
+    keys: [process.env.SESSION_SECRET || 'dev-insecure-secret'],
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: !!process.env.VERCEL, // HTTPS-only in production
+    maxAge: 1000 * 60 * 60 * 8,
   })
 );
 
@@ -86,7 +90,8 @@ app.post('/api/login', async (req, res) => {
 });
 
 app.post('/api/logout', (req, res) => {
-  req.session.destroy(() => res.json({ ok: true }));
+  req.session = null;
+  res.json({ ok: true });
 });
 
 app.get('/api/me', requireAuth, (req, res) => {
