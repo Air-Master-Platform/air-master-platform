@@ -14,6 +14,10 @@ const { askAgent } = require('./agent');
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
+// Behind Vercel's edge/proxy: TLS is terminated upstream, so Express sees http
+// internally. Trust the proxy so secure cookies are set and sent correctly.
+app.set('trust proxy', 1);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 // Stateless signed-cookie session: the session lives in the cookie itself, so
