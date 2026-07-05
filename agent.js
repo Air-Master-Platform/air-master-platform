@@ -122,7 +122,7 @@ async function askAgent(message, context = {}) {
       (data && (data.output || data.reply || data.text)) ||
       (typeof data === 'string' ? data : '');
 
-    if (!reply) return 'Air Master Agent did not return a reply.';
+    if (!reply) return 'Lisa did not return a reply.';
 
     // If the agent signalled a complete manifest, run the build-up check and
     // append the verdict to the conversational reply.
@@ -151,8 +151,8 @@ async function askAgent(message, context = {}) {
     return reply;
   } catch (err) {
     console.error('n8n agent error:', err.message);
-    if (err.name === 'AbortError') return 'Air Master Agent timed out. Please try again.';
-    return 'Air Master Agent is unavailable right now. Please try again shortly.';
+    if (err.name === 'AbortError') return 'Lisa timed out. Please try again.';
+    return 'Lisa is unavailable right now. Please try again shortly.';
   } finally {
     clearTimeout(timer);
   }

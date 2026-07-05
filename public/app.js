@@ -178,7 +178,7 @@ const QUICK = [
 function showQuickActions() {
   messagesEl.innerHTML = `
     <div class="quick">
-      <p class="quick-greet">Hi ${esc(currentUser?.username || '')} 👋 — how can the Air Master Agent help today?</p>
+      <p class="quick-greet">Hi ${esc(currentUser?.username || '')} 👋 — I'm Lisa, your air cargo expert. How can I help today?</p>
       <div class="quick-grid">
         ${QUICK.map((q, i) => `<button class="quick-chip" data-q="${i}"><strong>${q.t}</strong><span>${q.d}</span></button>`).join('')}
       </div>
@@ -195,7 +195,7 @@ function addBubble(role, content) {
 
   const row = document.createElement('div');
   row.className = 'row ' + role;
-  const name = role === 'agent' ? 'Air Master Agent' : 'You';
+  const name = role === 'agent' ? 'Lisa' : 'You';
   const avatar = role === 'agent'
     ? `<div class="row-avatar agent"><img src="/agent-avatar.png" alt="A"></div>`
     : `<div class="row-avatar user">👤</div>`;
@@ -310,7 +310,7 @@ chatInput.addEventListener('input', autoResize);
 document.getElementById('newChatBtn').addEventListener('click', () => {
   activeSessionId = null;
   activeThreadName = null;
-  threadTitleEl.textContent = 'Air Master Agent';
+  threadTitleEl.textContent = 'Lisa';
   renameBtn.hidden = true;
   document.querySelectorAll('.thread').forEach((t) => t.classList.remove('active'));
   showQuickActions();
@@ -444,7 +444,7 @@ function openVoice() {
   voice.busy = false;
   voice.transcript.textContent = '';
   voice.overlay.hidden = false;
-  const greet = 'Hi, I’m Air Master. How can I help with your shipment?';
+  const greet = 'Hi, I’m Lisa, your air cargo expert. How can I help with your shipment?';
   voice.transcript.textContent = greet;
   speak(greet, () => startListening());
 }
@@ -544,7 +544,7 @@ async function deleteThread(id) {
   await fetch('/api/chat-history/threads/' + id, { method: 'DELETE' });
   if (id === activeSessionId) {
     activeSessionId = null;
-    threadTitleEl.textContent = 'Air Master Agent';
+    threadTitleEl.textContent = 'Lisa';
     renameBtn.hidden = true;
     showQuickActions();
   }
