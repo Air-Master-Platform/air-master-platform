@@ -1,13 +1,10 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "server.js",
-      "use": "@vercel/node",
-      "config": { "includeFiles": ["public/**", "engine/**", "schema.sql"] }
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "{public,engine}/**"
     }
-  ],
-  "routes": [
-    { "src": "/(.*)", "dest": "server.js" }
+  },
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/api/index.js" }
   ]
 }
