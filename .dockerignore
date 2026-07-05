@@ -1,0 +1,13 @@
+node_modules
+npm-debug.log
+.env
+.env.*
+.git
+.gitignore
+engine/__pycache__
+**/__pycache__
+*.pyc
+.vercel
+api
+vercel.json
+.DS_Store
