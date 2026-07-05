@@ -2,10 +2,13 @@
 require('dotenv').config();
 const { Pool } = require('pg');
 
-// Prefer DATABASE_URL if provided, else build from PG* vars.
-const pool = process.env.DATABASE_URL
+// Prefer a connection URL if provided, else build from PG* vars.
+// POSTGRES_URL is a non-reserved name (DATABASE_URL is managed/reserved by
+// Vercel Postgres and can be blanked out); we accept either.
+const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+const pool = connectionString
   ? new Pool({
-      connectionString: process.env.DATABASE_URL,
+      connectionString,
       ssl: { rejectUnauthorized: false },
     })
   : new Pool({
