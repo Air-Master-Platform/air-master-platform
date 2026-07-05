@@ -28,7 +28,9 @@ app.use(
     keys: [process.env.SESSION_SECRET || 'dev-insecure-secret'],
     httpOnly: true,
     sameSite: 'lax',
-    secure: !!process.env.VERCEL, // HTTPS-only in production
+    // Let cookie-session decide secure from the (proxy-trusted) request instead
+    // of forcing it; forcing secure can cause the cookie to be dropped when
+    // HTTPS detection behind Vercel's edge is inconsistent.
     maxAge: 1000 * 60 * 60 * 8,
   })
 );
