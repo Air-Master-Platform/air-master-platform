@@ -6,11 +6,11 @@ primary_region = "fra"
   dockerfile = "Dockerfile"
 
 [env]
-  PORT = "3000"
+  PORT = "8080"
   NODE_ENV = "production"
 
 [http_service]
-  internal_port = 3000
+  internal_port = 8080
   force_https = true
   # Scale to zero when idle to keep cost near $0; cold start on next request.
   auto_stop_machines = "stop"
