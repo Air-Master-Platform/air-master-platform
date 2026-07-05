@@ -270,6 +270,11 @@ app.delete('/api/chat-history/threads/:id', requireAuth, async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Air Master platform on http://localhost:${PORT}`);
-});
+// On Vercel the platform imports the app; locally we start our own listener.
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`Air Master platform on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
