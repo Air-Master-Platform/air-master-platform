@@ -202,11 +202,12 @@ class B737_800SF_Config(AircraftConfig):
             if z_cm <= 90:
                 return (0, 318)
             elif z_cm <= 150:
-                return (40, 278)
+                return (40, 278)   # inset 40/side  -> 238 usable
             elif z_cm <= 170:
-                return (70, 248)
+                return (70, 248)   # inset 70/side  -> 178 usable
             else:
-                return (89, 229)
+                # 170-200: IATA L-45 contour steps in 100/side -> 118 usable
+                return (100, 218)
         else:
             if z_cm <= 150:
                 if z_cm <= 90:
