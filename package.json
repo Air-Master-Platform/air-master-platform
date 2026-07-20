@@ -1,7 +1,7 @@
 {
   "name": "air-master-platform",
   "version": "1.0.0",
-  "description": "Air Master cargo platform - login, landing, and Air Master Agent",
+  "description": "Sky Vision Airlines cargo platform - login, landing, and Sky Vision Agent",
   "main": "server.js",
   "type": "commonjs",
   "scripts": {

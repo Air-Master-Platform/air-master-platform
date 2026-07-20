@@ -1,8 +1,8 @@
 'use strict';
 /*
- * Air Master Agent.
+ * Sky Vision Agent.
  *
- * Forwards chat messages to the n8n Air Master Agent workflow (OpenAI-backed)
+ * Forwards chat messages to the n8n Sky Vision Agent workflow (OpenAI-backed)
  * via its Chat Trigger webhook, and returns the agent's reply text.
  *
  * Signature kept as (message, context) -> Promise<string> so server.js is unchanged.
@@ -15,7 +15,7 @@ const { runPlan } = require('./engine');
 
 const N8N_AGENT_WEBHOOK =
   process.env.N8N_AGENT_WEBHOOK ||
-  'https://donedl-n8n.fly.dev/webhook/air-master-agent/chat';
+  'https://donedl-n8n.fly.dev/webhook/6b3609cd-5394-4ba5-b960-6243c8a771a0/chat';
 
 const TIMEOUT_MS = 30000;
 

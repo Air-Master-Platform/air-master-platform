@@ -1,4 +1,4 @@
-# Air Master — Build Up Plan Test Cases
+# Sky Vision Airlines — Build Up Plan Test Cases
 
 Manifests for testing the loading engine via the **Build Up Plan** view
 (`/app` → Build Up Plan → paste a manifest → **Run Plan**).

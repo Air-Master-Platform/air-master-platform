@@ -1,6 +1,6 @@
 # CargoFlow Engine — Logic & Constraints
 
-Air Master platform · Egyptair **B737-800SF** main deck build-up + balance engine.
+Sky Vision Airlines platform · Egyptair **B737-800SF** main deck build-up + balance engine.
 This document mirrors the live Python engine (`engine/`); numbers are read from the same config the engine uses.
 
 > **Golden rule:** a box's **height cannot rotate** ("this way up"). Only length/width may swap.
