@@ -1,4 +1,4 @@
-# Air Master platform: Node web server + Python cargo engine in one image.
+# Sky Vision Airlines platform: Node web server + Python cargo engine in one image.
 FROM node:20-slim
 
 # System Python 3 + pip (the engine shells out to python3 via engine.js).

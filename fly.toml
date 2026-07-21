@@ -1,5 +1,5 @@
-# Fly.io config for the Air Master platform (Node + Python engine).
-app = "air-master-platform"
+# Fly.io config for the Sky Vision Airlines platform (Node + Python engine).
+app = "sky-vision-airlines"
 primary_region = "fra"
 
 [build]
@@ -19,4 +19,4 @@ primary_region = "fra"
 
 [[vm]]
   size = "shared-cpu-1x"
-  memory = "1gb"
+  memory = "256mb"
